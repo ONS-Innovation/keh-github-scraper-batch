@@ -5,6 +5,7 @@ import logging
 import boto3
 from github_api_toolkit import github_graphql_interface, github_interface
 import github_api_toolkit
+import datetime
 
 # Set up logging
 logger = logging.getLogger()
@@ -56,6 +57,13 @@ def get_repository_technologies(ql, gh, org, batch_size=30):
     cursor = None
     all_repos = []
     
+    # Statistics tracking
+    total_repos = 0
+    private_repos = 0
+    public_repos = 0
+    internal_repos = 0
+    language_stats = {}
+    
     while has_next_page:
         variables = {"org": org, "limit": batch_size, "cursor": cursor}
         result = ql.make_ql_request(query, variables)
@@ -73,18 +81,39 @@ def get_repository_technologies(ql, gh, org, batch_size=30):
         
         for repo in repos:
             try:
+                # Count repository visibility
+                total_repos += 1
+                if repo["visibility"] == "PRIVATE":
+                    private_repos += 1
+                elif repo["visibility"] == "PUBLIC":
+                    public_repos += 1
+                elif repo["visibility"] == "INTERNAL":
+                    internal_repos += 1
+
                 # Process languages
                 languages = []
                 if repo["languages"]["edges"]:
                     total_size = repo["languages"]["totalSize"]
-                    languages = [
-                        {
-                            "name": edge["node"]["name"],
+                    for edge in repo["languages"]["edges"]:
+                        lang_name = edge["node"]["name"]
+                        percentage = (edge["size"] / total_size) * 100
+                        
+                        # Update language statistics
+                        if lang_name not in language_stats:
+                            language_stats[lang_name] = {
+                                "repo_count": 0,
+                                "total_percentage": 0,
+                                "total_lines": 0
+                            }
+                        language_stats[lang_name]["repo_count"] += 1
+                        language_stats[lang_name]["total_percentage"] += percentage
+                        language_stats[lang_name]["total_lines"] += edge["size"]
+                        
+                        languages.append({
+                            "name": lang_name,
                             "size": edge["size"],
-                            "percentage": (edge["size"] / total_size) * 100
-                        }
-                        for edge in repo["languages"]["edges"]
-                    ]
+                            "percentage": percentage
+                        })
 
                 repo_info = {
                     "name": repo["name"],
@@ -101,21 +130,39 @@ def get_repository_technologies(ql, gh, org, batch_size=30):
                 logger.error(f"Error processing repository {repo.get('name', 'unknown')}: {str(e)}")
 
         logger.info(f"Processed {len(all_repos)} repositories")
-
-        try:
-            with open("repositories.json", "r") as file:
-                data = json.load(file)
-        except FileNotFoundError:
-            data = {"repositories": []}
-        
-        with open("repositories.json", "w") as file:
-            data["repositories"] = all_repos
-            json.dump(data, file, indent=2)
-            file.write("\n")
             
         page_info = data["data"]["organization"]["repositories"]["pageInfo"]
         has_next_page = page_info["hasNextPage"]
         cursor = page_info["endCursor"]
+
+    # Calculate language averages
+    language_averages = {}
+    for lang, stats in language_stats.items():
+        language_averages[lang] = {
+            "repo_count": stats["repo_count"],
+            "average_percentage": round(stats["total_percentage"] / stats["repo_count"], 3),
+            "average_lines": round(stats["total_lines"] / stats["repo_count"], 3)
+        }
+
+    # Create final output
+    output = {
+        "repositories": all_repos,
+        "stats": {
+            "total_repos": total_repos,
+            "total_private_repos": private_repos,
+            "total_public_repos": public_repos,
+            "total_internal_repos": internal_repos
+        },
+        "language_statistics": language_averages,
+        "metadata": {
+            "last_updated": datetime.datetime.now().strftime("%Y-%m-%d")
+        }
+    }
+
+    # Write everything to file at once
+    with open("repositories.json", "w") as file:
+        json.dump(output, file, indent=2)
+        file.write("\n")
         
     return all_repos
 
@@ -158,7 +205,6 @@ def main():
             "repositories": repos
         }
         
-        print(json.dumps(output, indent=2))
         
     except Exception as e:
         logger.error(f"Execution failed: {str(e)}")
