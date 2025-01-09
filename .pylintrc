@@ -1,0 +1,4 @@
+[MESSAGES CONTROL]
+disable=logging-too-many-args, too-many-statements
+max-locals=45
+max-nested-blocks=7
