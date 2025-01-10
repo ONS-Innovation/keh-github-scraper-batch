@@ -57,6 +57,7 @@ def get_repository_technologies(ql, org, batch_size=30):
     has_next_page = True
     cursor = None
     all_repos = []
+    # test CI
 
     # Statistics tracking
     total_repos = 0
