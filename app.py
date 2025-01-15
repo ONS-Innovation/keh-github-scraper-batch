@@ -29,7 +29,7 @@ def get_repository_technologies(ql, org, batch_size=30):
     query = """
     query($org: String!, $limit: Int!, $cursor: String) {
       organization(login: $org) {
-        repositories(first: $limit, after: $cursor, isArchived: false) {
+        repositories(first: $limit, after: $cursor) {
           pageInfo {
             hasNextPage
             endCursor
@@ -38,6 +38,19 @@ def get_repository_technologies(ql, org, batch_size=30):
             name
             url
             visibility
+            isArchived
+            defaultBranchRef {
+              target {
+                ... on Commit {
+                  committedDate
+                  history(first: 1) {
+                    nodes {
+                      committedDate
+                    }
+                  }
+                }
+              }
+            }
             languages(first: 10, orderBy: {field: SIZE, direction: DESC}) {
               edges {
                 size
@@ -64,7 +77,12 @@ def get_repository_technologies(ql, org, batch_size=30):
     private_repos = 0
     public_repos = 0
     internal_repos = 0
+    archived_repos = 0
+    archived_private = 0
+    archived_public = 0
+    archived_internal = 0
     language_stats = {}
+    archived_language_stats = {}  # New dictionary for archived repos
 
     while has_next_page:
         variables = {"org": org, "limit": batch_size, "cursor": cursor}
@@ -85,12 +103,28 @@ def get_repository_technologies(ql, org, batch_size=30):
             try:
                 # Count repository visibility
                 total_repos += 1
+                is_archived = repo.get("isArchived", False)
+                
+                if is_archived:
+                    archived_repos += 1
+                    if repo["visibility"] == "PRIVATE":
+                        archived_private += 1
+                    elif repo["visibility"] == "PUBLIC":
+                        archived_public += 1
+                    elif repo["visibility"] == "INTERNAL":
+                        archived_internal += 1
+                
                 if repo["visibility"] == "PRIVATE":
                     private_repos += 1
                 elif repo["visibility"] == "PUBLIC":
                     public_repos += 1
                 elif repo["visibility"] == "INTERNAL":
                     internal_repos += 1
+
+                # Get last commit date
+                last_commit_date = None
+                if repo.get("defaultBranchRef") and repo["defaultBranchRef"].get("target"):
+                    last_commit_date = repo["defaultBranchRef"]["target"].get("committedDate")
 
                 # Process languages
                 languages = []
@@ -100,16 +134,19 @@ def get_repository_technologies(ql, org, batch_size=30):
                         lang_name = edge["node"]["name"]
                         percentage = (edge["size"] / total_size) * 100
 
+                        # Choose which statistics dictionary to update based on archive status
+                        stats_dict = archived_language_stats if is_archived else language_stats
+                        
                         # Update language statistics
-                        if lang_name not in language_stats:
-                            language_stats[lang_name] = {
+                        if lang_name not in stats_dict:
+                            stats_dict[lang_name] = {
                                 "repo_count": 0,
                                 "total_percentage": 0,
                                 "total_lines": 0,
                             }
-                        language_stats[lang_name]["repo_count"] += 1
-                        language_stats[lang_name]["total_percentage"] += percentage
-                        language_stats[lang_name]["total_lines"] += edge["size"]
+                        stats_dict[lang_name]["repo_count"] += 1
+                        stats_dict[lang_name]["total_percentage"] += percentage
+                        stats_dict[lang_name]["total_lines"] += edge["size"]
 
                         languages.append(
                             {
@@ -123,6 +160,8 @@ def get_repository_technologies(ql, org, batch_size=30):
                     "name": repo["name"],
                     "url": repo["url"],
                     "visibility": repo["visibility"],
+                    "is_archived": is_archived,
+                    "last_commit": last_commit_date,
                     "technologies": {"languages": languages},
                 }
 
@@ -141,7 +180,7 @@ def get_repository_technologies(ql, org, batch_size=30):
         has_next_page = page_info["hasNextPage"]
         cursor = page_info["endCursor"]
 
-    # Calculate language averages
+    # Calculate language averages for non-archived repos
     language_averages = {}
     for lang, stats in language_stats.items():
         language_averages[lang] = {
@@ -152,17 +191,67 @@ def get_repository_technologies(ql, org, batch_size=30):
             "average_lines": round(stats["total_lines"] / stats["repo_count"], 3),
         }
 
+    # Calculate language averages for archived repos
+    archived_language_averages = {}
+    for lang, stats in archived_language_stats.items():
+        archived_language_averages[lang] = {
+            "repo_count": stats["repo_count"],
+            "average_percentage": round(
+                stats["total_percentage"] / stats["repo_count"], 3
+            ),
+            "average_lines": round(stats["total_lines"] / stats["repo_count"], 3),
+        }
+
     # Create final output
     output = {
         "repositories": all_repos,
-        "stats": {
-            "total_repos": total_repos,
-            "total_private_repos": private_repos,
-            "total_public_repos": public_repos,
-            "total_internal_repos": internal_repos,
+        "stats_unarchived": {
+            "total": total_repos - archived_repos,
+            "private": private_repos - archived_private,
+            "public": public_repos - archived_public,
+            "internal": internal_repos - archived_internal,
+            "active_last_month": sum(
+                1 for repo in all_repos 
+                if repo["last_commit"] and not repo["is_archived"] and
+                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 30
+            ),
+            "active_last_3months": sum(
+                1 for repo in all_repos 
+                if repo["last_commit"] and not repo["is_archived"] and
+                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 90
+            ),
+            "active_last_6months": sum(
+                1 for repo in all_repos 
+                if repo["last_commit"] and not repo["is_archived"] and
+                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 180
+            )
         },
-        "language_statistics": language_averages,
-        "metadata": {"last_updated": datetime.datetime.now().strftime("%Y-%m-%d")},
+        "stats_archived": {
+            "total": archived_repos,
+            "private": archived_private,
+            "public": archived_public,
+            "internal": archived_internal,
+            "active_last_month": sum(
+                1 for repo in all_repos 
+                if repo["last_commit"] and repo["is_archived"] and
+                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 30
+            ),
+            "active_last_3months": sum(
+                1 for repo in all_repos 
+                if repo["last_commit"] and repo["is_archived"] and
+                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 90
+            ),
+            "active_last_6months": sum(
+                1 for repo in all_repos 
+                if repo["last_commit"] and repo["is_archived"] and
+                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 180
+            )
+        },
+        "language_statistics_unarchived": language_averages,
+        "language_statistics_archived": archived_language_averages,
+        "metadata": {
+            "last_updated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+        },
     }
 
     # Write everything to file at once
@@ -210,7 +299,6 @@ def main():
             "repositories": repos,
         }
 
-        logger.info("Results: %s", output)
 
     except Exception as e:
         logger.error("Execution failed: %s", str(e))
