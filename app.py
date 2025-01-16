@@ -4,8 +4,7 @@ import json
 import logging
 import datetime
 import boto3
-from github_api_toolkit import github_graphql_interface
-import github_api_toolkit
+from github_api_toolkit import github_graphql_interface, get_token_as_installation
 
 # Set up logging
 logger = logging.getLogger()
@@ -281,7 +280,7 @@ def main():
         logger.info("Getting GitHub token from AWS Secrets Manager")
         secret = secret_manager.get_secret_value(SecretId=secret_name)["SecretString"]
 
-        token = github_api_toolkit.get_token_as_installation(org, secret, client_id)
+        token = get_token_as_installation(org, secret, client_id)
         if not token:
             logger.error('Error getting GitHub token')
             return {"statusCode": 500, "body": json.dumps("Failed to get GitHub token")}
