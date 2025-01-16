@@ -127,10 +127,13 @@ def get_repository_technologies(ql, org, batch_size=30):
 
                 # Process languages
                 languages = []
+                IAC = []
                 if repo["languages"]["edges"]:
                     total_size = repo["languages"]["totalSize"]
                     for edge in repo["languages"]["edges"]:
                         lang_name = edge["node"]["name"]
+                        if lang_name == "HCL":
+                            IAC.append("Terraform")
                         percentage = (edge["size"] / total_size) * 100
 
                         # Choose which statistics dictionary to update based on archive status
@@ -161,7 +164,7 @@ def get_repository_technologies(ql, org, batch_size=30):
                     "visibility": repo["visibility"],
                     "is_archived": is_archived,
                     "last_commit": last_commit_date,
-                    "technologies": {"languages": languages},
+                    "technologies": {"languages": languages, "IAC": IAC},
                 }
 
                 all_repos.append(repo_info)
