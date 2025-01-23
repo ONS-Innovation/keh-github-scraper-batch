@@ -1,3 +1,28 @@
+"""GitHub Scraper Script
+
+This script performs a comprehensive technology audit of GitHub repositories within an organization.
+It collects information about programming languages, infrastructure as code (IaC) usage,
+repository visibility, archival status, and activity metrics.
+
+The script:
+- Authenticates with GitHub using an installation token from AWS Secrets Manager
+- Queries repository data via GitHub's GraphQL API
+- Analyzes language usage and calculates statistics
+- Tracks repository activity over different time periods
+- Outputs results to a JSON file with repository details and aggregated metrics
+
+Environment Variables Required:
+    GITHUB_ORG: GitHub organization name
+    GITHUB_APP_CLIENT_ID: GitHub App client ID
+    AWS_SECRET_NAME: Name of AWS secret containing GitHub credentials
+    AWS_DEFAULT_REGION: AWS region for Secrets Manager
+    AWS_ACCESS_KEY_ID: AWS access key
+    AWS_SECRET_ACCESS_KEY: AWS secret key
+
+Output:
+    repositories.json: Contains detailed repository data and statistics
+"""
+
 import sys
 import os
 import json
@@ -93,7 +118,7 @@ def get_repository_technologies(ql, org, batch_size=30):
 
         data = result.json()
         if "errors" in data:
-            logger.error("GraphQL query returned errors: {}", data['errors'])
+            logger.error("GraphQL query returned errors: {}", data["errors"])
             break
 
         repos = data["data"]["organization"]["repositories"]["nodes"]
@@ -103,7 +128,7 @@ def get_repository_technologies(ql, org, batch_size=30):
                 # Count repository visibility
                 total_repos += 1
                 is_archived = repo.get("isArchived", False)
-                
+
                 if is_archived:
                     archived_repos += 1
                     if repo["visibility"] == "PRIVATE":
@@ -112,7 +137,7 @@ def get_repository_technologies(ql, org, batch_size=30):
                         archived_public += 1
                     elif repo["visibility"] == "INTERNAL":
                         archived_internal += 1
-                
+
                 if repo["visibility"] == "PRIVATE":
                     private_repos += 1
                 elif repo["visibility"] == "PUBLIC":
@@ -122,8 +147,12 @@ def get_repository_technologies(ql, org, batch_size=30):
 
                 # Get last commit date
                 last_commit_date = None
-                if repo.get("defaultBranchRef") and repo["defaultBranchRef"].get("target"):
-                    last_commit_date = repo["defaultBranchRef"]["target"].get("committedDate")
+                if repo.get("defaultBranchRef") and repo["defaultBranchRef"].get(
+                    "target"
+                ):
+                    last_commit_date = repo["defaultBranchRef"]["target"].get(
+                        "committedDate"
+                    )
 
                 # Process languages
                 languages = []
@@ -137,8 +166,10 @@ def get_repository_technologies(ql, org, batch_size=30):
                         percentage = (edge["size"] / total_size) * 100
 
                         # Choose which statistics dictionary to update based on archive status
-                        stats_dict = archived_language_stats if is_archived else language_stats
-                        
+                        stats_dict = (
+                            archived_language_stats if is_archived else language_stats
+                        )
+
                         # Update language statistics
                         if lang_name not in stats_dict:
                             stats_dict[lang_name] = {
@@ -171,12 +202,10 @@ def get_repository_technologies(ql, org, batch_size=30):
 
             except Exception as e:
                 logger.error(
-                    "Error processing repository {}: {}".format(
-                        repo.get("name", "unknown"), str(e)
-                    )
+                    f"Error processing repository {repo.get('name', 'unknown')}: {str(e)}"
                 )
 
-        logger.info("Processed {} repositories".format(len(all_repos)))
+        logger.info(f"Processed {len(all_repos)} repositories")
 
         page_info = data["data"]["organization"]["repositories"]["pageInfo"]
         has_next_page = page_info["hasNextPage"]
@@ -213,20 +242,44 @@ def get_repository_technologies(ql, org, batch_size=30):
             "public": public_repos - archived_public,
             "internal": internal_repos - archived_internal,
             "active_last_month": sum(
-                1 for repo in all_repos 
-                if repo["last_commit"] and not repo["is_archived"] and
-                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 30
+                1
+                for repo in all_repos
+                if repo["last_commit"]
+                and not repo["is_archived"]
+                and (
+                    datetime.datetime.now(datetime.timezone.utc)
+                    - datetime.datetime.fromisoformat(
+                        repo["last_commit"].replace("Z", "+00:00")
+                    )
+                ).days
+                <= 30
             ),
             "active_last_3months": sum(
-                1 for repo in all_repos 
-                if repo["last_commit"] and not repo["is_archived"] and
-                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 90
+                1
+                for repo in all_repos
+                if repo["last_commit"]
+                and not repo["is_archived"]
+                and (
+                    datetime.datetime.now(datetime.timezone.utc)
+                    - datetime.datetime.fromisoformat(
+                        repo["last_commit"].replace("Z", "+00:00")
+                    )
+                ).days
+                <= 90
             ),
             "active_last_6months": sum(
-                1 for repo in all_repos 
-                if repo["last_commit"] and not repo["is_archived"] and
-                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 180
-            )
+                1
+                for repo in all_repos
+                if repo["last_commit"]
+                and not repo["is_archived"]
+                and (
+                    datetime.datetime.now(datetime.timezone.utc)
+                    - datetime.datetime.fromisoformat(
+                        repo["last_commit"].replace("Z", "+00:00")
+                    )
+                ).days
+                <= 180
+            ),
         },
         "stats_archived": {
             "total": archived_repos,
@@ -234,25 +287,51 @@ def get_repository_technologies(ql, org, batch_size=30):
             "public": archived_public,
             "internal": archived_internal,
             "active_last_month": sum(
-                1 for repo in all_repos 
-                if repo["last_commit"] and repo["is_archived"] and
-                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 30
+                1
+                for repo in all_repos
+                if repo["last_commit"]
+                and repo["is_archived"]
+                and (
+                    datetime.datetime.now(datetime.timezone.utc)
+                    - datetime.datetime.fromisoformat(
+                        repo["last_commit"].replace("Z", "+00:00")
+                    )
+                ).days
+                <= 30
             ),
             "active_last_3months": sum(
-                1 for repo in all_repos 
-                if repo["last_commit"] and repo["is_archived"] and
-                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 90
+                1
+                for repo in all_repos
+                if repo["last_commit"]
+                and repo["is_archived"]
+                and (
+                    datetime.datetime.now(datetime.timezone.utc)
+                    - datetime.datetime.fromisoformat(
+                        repo["last_commit"].replace("Z", "+00:00")
+                    )
+                ).days
+                <= 90
             ),
             "active_last_6months": sum(
-                1 for repo in all_repos 
-                if repo["last_commit"] and repo["is_archived"] and
-                (datetime.datetime.now(datetime.timezone.utc) - datetime.datetime.fromisoformat(repo["last_commit"].replace("Z", "+00:00"))).days <= 180
-            )
+                1
+                for repo in all_repos
+                if repo["last_commit"]
+                and repo["is_archived"]
+                and (
+                    datetime.datetime.now(datetime.timezone.utc)
+                    - datetime.datetime.fromisoformat(
+                        repo["last_commit"].replace("Z", "+00:00")
+                    )
+                ).days
+                <= 180
+            ),
         },
         "language_statistics_unarchived": language_averages,
         "language_statistics_archived": archived_language_averages,
         "metadata": {
-            "last_updated": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+            "last_updated": datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%d"
+            )
         },
     }
 
@@ -285,22 +364,14 @@ def main():
 
         token = get_token_as_installation(org, secret, client_id)
         if not token:
-            logger.error('Error getting GitHub token')
+            logger.error("Error getting GitHub token")
             return {"statusCode": 500, "body": json.dumps("Failed to get GitHub token")}
 
         logger.info("Successfully obtained GitHub token")
         ql = github_graphql_interface(str(token[0]))
 
         # Get repository technology information
-        repos = get_repository_technologies(ql, org)
-
-        # Print or save results
-        output = {
-            "message": "Successfully analyzed repository technologies",
-            "repository_count": len(repos),
-            "repositories": repos,
-        }
-
+        get_repository_technologies(ql, org)
 
     except Exception as e:
         logger.error("Execution failed: %s", str(e))
