@@ -60,6 +60,19 @@ def get_repository_technologies(ql, org, batch_size=30):
               }
               totalSize
             }
+            object(expression: "HEAD:") {
+          ... on Tree {
+            entries {
+              name
+              type
+              object {
+                ... on Blob {
+                    text
+                }
+              }
+            }
+          }
+        }
           }
         }
       }
@@ -80,9 +93,24 @@ def get_repository_technologies(ql, org, batch_size=30):
     archived_private = 0
     archived_public = 0
     archived_internal = 0
+    README_COUNT = 0
     language_stats = {}
     archived_language_stats = {}  # New dictionary for archived repos
 
+    variables = {"org": org, "limit": batch_size, "cursor": cursor}
+    result = ql.make_ql_request(query, variables)
+    repos = result.json()
+
+    with open("files.json", "a+") as file:
+        for repo in repos["data"]["organization"]["repositories"]["nodes"]:
+            if repo["object"] is not None:
+                # json.dump(repo["object"]["entries"], file, indent=4)
+                # repo["object"]["entries"] is a LIST of dictionaries
+                print(json.dumps(repo["name"], indent=4))
+
+                if repo["object"]["entries"][0]["name"] == "README.md":
+                    print(repo["object"]["entries"][0]["object"]["text"])
+                    
     while has_next_page:
         variables = {"org": org, "limit": batch_size, "cursor": cursor}
         result = ql.make_ql_request(query, variables)
@@ -134,6 +162,8 @@ def get_repository_technologies(ql, org, batch_size=30):
                         lang_name = edge["node"]["name"]
                         if lang_name == "HCL":
                             IAC.append("Terraform")
+                        if lang_name == "Dockerfile":
+                            IAC.append("Docker")
                         percentage = (edge["size"] / total_size) * 100
 
                         # Choose which statistics dictionary to update based on archive status
@@ -157,7 +187,15 @@ def get_repository_technologies(ql, org, batch_size=30):
                                 "percentage": percentage,
                             }
                         )
-
+                files = [repo["object"]["entries"] for repo in repos if repo["object"] is not None]
+                if repo["object"] is not None:
+                    # json.dump(repo["object"]["entries"], file, indent=4)
+                    # repo["object"]["entries"] is a LIST of dictionaries
+                    print(json.dumps(repo["name"], indent=4))
+                    if len(repo["object"]["entries"]) > 0:
+                        if repo["object"]["entries"][0]["name"] == "README.md":
+                            # print(repo["object"]["entries"][0]["object"]["text"])
+                            README_COUNT += 1
                 repo_info = {
                     "name": repo["name"],
                     "url": repo["url"],
