@@ -1,0 +1,5 @@
+[MESSAGES CONTROL]
+disable=logging-too-many-args, too-many-statements, logging-format-interpolation, logging-fstring-interpolation
+max-locals=45
+max-nested-blocks=7
+max-branches=20
