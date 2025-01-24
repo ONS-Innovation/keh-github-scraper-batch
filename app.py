@@ -69,6 +69,11 @@ def get_repository_technologies(ql, org, batch_size=30):
                 ... on Blob {
                     text
                 }
+                ... on Tree {
+                    entries {
+                        name
+                    }
+                }
               }
             }
           }
@@ -93,23 +98,8 @@ def get_repository_technologies(ql, org, batch_size=30):
     archived_private = 0
     archived_public = 0
     archived_internal = 0
-    README_COUNT = 0
     language_stats = {}
     archived_language_stats = {}  # New dictionary for archived repos
-
-    variables = {"org": org, "limit": batch_size, "cursor": cursor}
-    result = ql.make_ql_request(query, variables)
-    repos = result.json()
-
-    with open("files.json", "a+") as file:
-        for repo in repos["data"]["organization"]["repositories"]["nodes"]:
-            if repo["object"] is not None:
-                # json.dump(repo["object"]["entries"], file, indent=4)
-                # repo["object"]["entries"] is a LIST of dictionaries
-                print(json.dumps(repo["name"], indent=4))
-
-                if repo["object"]["entries"][0]["name"] == "README.md":
-                    print(repo["object"]["entries"][0]["object"]["text"])
                     
     while has_next_page:
         variables = {"org": org, "limit": batch_size, "cursor": cursor}
@@ -187,22 +177,62 @@ def get_repository_technologies(ql, org, batch_size=30):
                                 "percentage": percentage,
                             }
                         )
-                files = [repo["object"]["entries"] for repo in repos if repo["object"] is not None]
+                
+                documentation_list = ["Confluence", "MKDocs", "Sphinx", "ReadTheDocs"]
+                cloud_services_list = ["AWS", "Azure", "GCP"]
+                frameworks_list = ["React", "Angular", "Vue", "Django", "Streamlit", "Flask", "Spring", "Hibernate", "Express", "Next.js", "Play", "Akka", "Lagom"]
+                ci_cd_list = ["Jenkins", "GitHub Actions", "GitLab CI", "CircleCI", "Travis CI", "Azure DevOps", "Concourse"]
+                ci_cd = []
+                frameworks = []
+                docs = []
+                cloud = []
                 if repo["object"] is not None:
                     # json.dump(repo["object"]["entries"], file, indent=4)
                     # repo["object"]["entries"] is a LIST of dictionaries
-                    print(json.dumps(repo["name"], indent=4))
-                    if len(repo["object"]["entries"]) > 0:
-                        if repo["object"]["entries"][0]["name"] == "README.md":
-                            # print(repo["object"]["entries"][0]["object"]["text"])
-                            README_COUNT += 1
+                    # Get README content
+                    readme_content = None
+                    makefile_content = None
+                    if repo["object"]["entries"]:
+                        for entry in repo["object"]["entries"]:
+                            if entry["name"].lower() == "readme.md":
+                                readme_content = entry["object"]["text"]
+                            if entry["name"].lower() == "makefile":
+                                makefile_content = entry["object"]["text"]
+
+                    # Check if "confluence" is present in README
+                    if readme_content is not None:
+                        for doc, cl in zip(documentation_list, cloud_services_list):
+                            if doc.lower() in readme_content.lower():
+                                docs.append(doc)
+                            if cl.lower() in readme_content.lower():
+                                cloud.append(cl)
+
+                    if makefile_content is not None:
+                        for framework in frameworks_list:
+                            if framework.lower() in makefile_content.lower():
+                                frameworks.append(framework)
+                    
+                    if repo["object"]["entries"]:
+                        for entry in repo["object"]["entries"]:
+                            if entry["name"] == ".github":
+                                if entry["object"]["entries"]:
+                                    for gh_entry in entry["object"]["entries"]:
+                                        if gh_entry["name"] == "workflows":
+                                            ci_cd.append("GitHub Actions")
+                                            break
+                            if entry["name"] == "ci":
+                                if entry["object"]["entries"]:
+                                    for ci_entry in entry["object"]["entries"]:
+                                        if "pipeline.yml" in ci_entry["name"]:
+                                            ci_cd.append("Concourse")
+                                            break
                 repo_info = {
                     "name": repo["name"],
                     "url": repo["url"],
                     "visibility": repo["visibility"],
                     "is_archived": is_archived,
                     "last_commit": last_commit_date,
-                    "technologies": {"languages": languages, "IAC": IAC},
+                    "technologies": {"languages": languages, "IAC": IAC, "docs": docs, "cloud": cloud, "frameworks": frameworks, "ci_cd": ci_cd},
                 }
 
                 all_repos.append(repo_info)
