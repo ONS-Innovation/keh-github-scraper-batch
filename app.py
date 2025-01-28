@@ -21,6 +21,14 @@ stdout_handler.setFormatter(
 )
 logger.addHandler(stdout_handler)
 
+def find_keywords_in_file(file, keywords_list):
+    keywords = []
+    if file is not None:
+        for keyword in keywords_list:
+            if (keyword.lower() in file.lower()) and (keyword.lower() not in keywords):
+                keywords.append(keyword)
+        return keywords
+    return []    
 
 def get_repository_technologies(ql, org, batch_size=30):
     """Gets technology information for all repositories in an organization"""
@@ -183,22 +191,23 @@ def get_repository_technologies(ql, org, batch_size=30):
                 frameworks_list = ["React", "Angular", "Vue", "Django", "Streamlit", "Flask", "Spring", "Hibernate", "Express", "Next.js", "Play", "Akka", "Lagom"]
                 ci_cd_list = ["Jenkins", "GitHub Actions", "GitLab CI", "CircleCI", "Travis CI", "Azure DevOps", "Concourse"]
                 ci_cd = []
-                frameworks = []
                 docs = []
                 cloud = []
                 if repo["object"] is not None:
                     # json.dump(repo["object"]["entries"], file, indent=4)
                     # repo["object"]["entries"] is a LIST of dictionaries
                     # Get README content
-                    readme_content = None
-                    makefile_content = None
+                    readme_content = pyproject_content = package_json_content = None
                     if repo["object"]["entries"]:
                         for entry in repo["object"]["entries"]:
                             if entry["name"].lower() == "readme.md":
                                 readme_content = entry["object"]["text"]
-                            if entry["name"].lower() == "makefile":
-                                makefile_content = entry["object"]["text"]
-
+                            if entry["name"].lower() == "pyproject.toml":
+                                pyproject_content = entry["object"]["text"]
+                    
+                    frameworks_pyproject = find_keywords_in_file(pyproject_content, frameworks_list)
+                    frameworks_package_json = find_keywords_in_file(package_json_content, frameworks_list)
+                    frameworks = frameworks_pyproject + frameworks_package_json
                     # Check if "confluence" is present in README
                     if readme_content is not None:
                         for doc, cl in zip(documentation_list, cloud_services_list):
@@ -206,12 +215,9 @@ def get_repository_technologies(ql, org, batch_size=30):
                                 docs.append(doc)
                             if cl.lower() in readme_content.lower():
                                 cloud.append(cl)
-
-                    if makefile_content is not None:
-                        for framework in frameworks_list:
-                            if framework.lower() in makefile_content.lower():
-                                frameworks.append(framework)
                     
+                    # Extremely hardcoded, will need to write a general tree traversal to find
+                    # things in all directories
                     if repo["object"]["entries"]:
                         for entry in repo["object"]["entries"]:
                             if entry["name"] == ".github":
@@ -226,6 +232,7 @@ def get_repository_technologies(ql, org, batch_size=30):
                                         if "pipeline.yml" in ci_entry["name"]:
                                             ci_cd.append("Concourse")
                                             break
+
                 repo_info = {
                     "name": repo["name"],
                     "url": repo["url"],
@@ -361,7 +368,9 @@ def main():
 
         # Get repository technology information
         repos = get_repository_technologies(ql, org)
-
+        
+        s3 = boto3.client('s3')
+        s3.upload_file('repositories.json', 'sdp-dev-github-scraper', 'repositories.json')
         # Print or save results
         output = {
             "message": "Successfully analyzed repository technologies",
