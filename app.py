@@ -30,7 +30,7 @@ def find_keywords_in_file(file, keywords_list):
         return keywords
     return []    
 
-def get_repository_technologies(ql, org, batch_size=30):
+def get_repository_technologies(ql, org, batch_size=5):
     """Gets technology information for all repositories in an organization"""
 
     query = """
@@ -111,11 +111,20 @@ def get_repository_technologies(ql, org, batch_size=30):
                     
     while has_next_page:
         variables = {"org": org, "limit": batch_size, "cursor": cursor}
-        result = ql.make_ql_request(query, variables)
+        fail_count = 0
 
-        if not result.ok:
-            logger.error("GraphQL query failed: {}", result.status_code)
+        while fail_count != 5:
+            result = ql.make_ql_request(query, variables)
+
+            if not result.ok:
+                logger.error("GraphQL query failed: {}", result.status_code)
+                fail_count += 1
+                logger.info('RETRYING...')
+            else:
+                break
+        if fail_count == 5:
             break
+                
 
         data = result.json()
         if "errors" in data:
@@ -370,14 +379,13 @@ def handler(event, context):
         repos = get_repository_technologies(ql, org)
         
         s3 = boto3.client('s3')
-        s3.upload_file('repositories.json', 'sdp-dev-github-scraper', 'repositories.json')
+        s3.upload_file('repositories.json', 'sdp-dev-tech-radar', 'repositories.json')
         # Print or save results
         output = {
             "message": "Successfully analyzed repository technologies",
             "repository_count": len(repos),
             "repositories": repos,
         }
-
 
     except Exception as e:
         logger.error("Execution failed: %s", str(e))
