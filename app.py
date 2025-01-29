@@ -339,7 +339,7 @@ def get_repository_technologies(ql, org, batch_size=30):
     return all_repos
 
 
-def main():
+def handler(event, context):
     """Main function to run the GitHub technology audit"""
     try:
         # Configuration
@@ -382,6 +382,3 @@ def main():
     except Exception as e:
         logger.error("Execution failed: %s", str(e))
 
-
-if __name__ == "__main__":
-    main()

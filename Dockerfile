@@ -1,24 +1,19 @@
 # Use an official Python runtime as a parent image
-FROM public.ecr.aws/lambda/python:3.12.4
+FROM public.ecr.aws/lambda/python:3.12
 
-# Set the working directory in the container
-WORKDIR /var/task
+# Install Poetry
+RUN pip install poetry
 
-# Create a non-root user and group
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Copy the project files
+COPY pyproject.toml poetry.lock ${LAMBDA_TASK_ROOT}/
 
-RUN pip install poetry==1.8.3
+# Install dependencies using Poetry
+WORKDIR ${LAMBDA_TASK_ROOT}
+RUN poetry config virtualenvs.create false && poetry install --no-root --only main
 
-# Install the dependencies
-RUN poetry install
+# Copy the application code
+COPY app.py ${LAMBDA_TASK_ROOT}/
 
-COPY app.py /var/task/
 
-# Change ownership of the application files to the non-root user
-RUN chown -R appuser:appuser /var/task
-
-# Switch to non-root user
-USER appuser
-
-# The CMD specifies the handler to use in AWS Lambda
-CMD ["main.lambda_handler"]
+# Set the CMD to your handler
+CMD [ "app.handler" ]
