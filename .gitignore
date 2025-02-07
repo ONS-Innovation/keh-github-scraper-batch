@@ -172,3 +172,5 @@ cython_debug/
 repositories.json
 files.json
 *.json
+
+*.tfvars

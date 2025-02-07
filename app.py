@@ -22,6 +22,15 @@ stdout_handler.setFormatter(
 logger.addHandler(stdout_handler)
 
 def find_keywords_in_file(file, keywords_list):
+    """Find keywords in a file
+
+    Args:
+        file (str): File contents that you are interested in searching
+        keywords_list (list): List of keywords that you want to search through the file
+
+    Returns:
+        list: List of keywords that were found in the file
+    """    
     keywords = []
     if file is not None:
         for keyword in keywords_list:
@@ -356,6 +365,7 @@ def handler(event, context):
         client_id = os.getenv("GITHUB_APP_CLIENT_ID")
         secret_name = os.getenv("AWS_SECRET_NAME")
         secret_region = os.getenv("AWS_DEFAULT_REGION")
+        bucket_name = os.getenv("SOURCE_BUCKET")
 
         logger.info("Starting GitHub technology audit")
 
@@ -379,7 +389,7 @@ def handler(event, context):
         repos = get_repository_technologies(ql, org)
         
         s3 = boto3.client('s3')
-        s3.upload_file('repositories.json', 'sdp-dev-tech-radar', 'repositories.json')
+        s3.upload_file('repositories.json', bucket_name, 'repositories.json')
         # Print or save results
         output = {
             "message": "Successfully analyzed repository technologies",
