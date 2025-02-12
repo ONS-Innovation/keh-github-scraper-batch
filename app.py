@@ -122,7 +122,7 @@ def get_repository_technologies(ql, org, batch_size=5):
         variables = {"org": org, "limit": batch_size, "cursor": cursor}
         fail_count = 0
 
-        while fail_count != 5:
+        while fail_count < 5:
             result = ql.make_ql_request(query, variables)
 
             if not result.ok:
@@ -400,3 +400,8 @@ def handler(event, context):
     except Exception as e:
         logger.error("Execution failed: %s", str(e))
 
+# Uncomment the following line to run the function locally
+"""
+if __name__ == "__main__":
+    handler(None, None)
+"""

@@ -21,17 +21,17 @@ poetry run python app.py
 These instructions assume:
 
 1. You have a repository set up in your AWS account named sdp-dev-github-scraper.
-2. You have created an AWS IAM user with permissions to read/write to ECR (e.g AmazonEC2ContainerRegistryFullAccess policy) and that you have created the necessary access keys for this user. The credentials for this user are stored in ~/.aws/credentials and can be used by accessing --profile <aws-credentials-profile>, if these are the only credentials in your file then the profile name is default.
+2. You have created an AWS IAM user with permissions to read/write to ECR (e.g AmazonEC2ContainerRegistryFullAccess policy) and that you have created the necessary access keys for this user. The credentials for this user are stored in `~/.aws/credentials` and can be used by accessing `--profile <aws-credentials-profile>`, if these are the only credentials in your file then the profile name is default.
 
-You can find the AWS repo push commands under your repository in ECR by selecting the "View Push Commands" button. This will display a guide to the following (replace <aws-credentials-profile>, <aws-account-id> and <version> accordingly):
+You can find the AWS repository push commands under your repository in ECR by selecting the "View Push Commands" button. This will display a guide to the following (replace `<aws-credentials-profile>`, `<aws-account-id>` and `<version>` accordingly):
 
-Get an authentication token and authenticate your docker client for pushing images to ECR:
+(1) Get an authentication token and authenticate your docker client for pushing images to ECR:
 
 ```bash
 aws ecr --profile <aws-credentials-profile> get-login-password --region eu-west-2 | docker login --username AWS --password-stdin <aws-account-id>.dkr.ecr.eu-west-2.amazonaws.com
 ```
 
-Tag your latest built docker image for ECR (assumes you have run docker build -t sdp-repo-archive . locally first)
+(2) Tag your latest built docker image for ECR (assumes you have run docker build -t sdp-repo-archive . locally first)
 
 ```bash
 docker tag sdp-dev-github-scraper:latest <aws-account-id>.dkr.ecr.eu-west-2.amazonaws.com/sdp-dev-github-scraper:<version>
@@ -39,7 +39,7 @@ docker tag sdp-dev-github-scraper:latest <aws-account-id>.dkr.ecr.eu-west-2.amaz
 
 Note: To find the <version> to build look at the latest tagged version in ECR and increment appropriately
 
-Push the version up to ECR
+(3) Push the version up to ECR
 
 ```bash
 docker push <aws-account-id>.dkr.ecr.eu-west-2.amazonaws.com/sdp-dev-github-scraper:<version>
@@ -49,15 +49,15 @@ docker push <aws-account-id>.dkr.ecr.eu-west-2.amazonaws.com/sdp-dev-github-scra
 
 If the application has been modified then the following can be performed to update the running service:
 
-Build a new version of the container image and upload to ECR as per the instructions earlier in this guide.
+(1) Build a new version of the container image and upload to ECR as per the instructions earlier in this guide.
 
-Change directory to the dashboard terraform
+(2) Change directory to the dashboard terraform
 
 ```bash
 cd terraform/lambda
 ```
 
-In the appropriate environment variable file env/sandbox/sandbox.tfvars, env/dev/dev.tfvars or env/prod/prod.tfvars
+(3) In the appropriate environment variable file `env/dev/dev.tfvars` or `env/prod/prod.tfvars`
 
 Change the container_ver variable to the new version of your container.
 Initialise terraform for the appropriate environment config file backend-dev.tfbackend or backend-prod.tfbackend run:
@@ -97,6 +97,4 @@ E.g. for the dev environment run
 terraform apply -var-file=env/dev/dev.tfvars
 ```
 
-When the terraform has applied successfully the running task will have been replaced by a task running the container version you specified in the tfvars file
-
-
+When the terraform has applied successfully the running lambda will have been updated to the latest terrafrom configuration and image on ECR.
