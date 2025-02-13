@@ -1,8 +1,23 @@
-# GitHub Organisation Repository Technology Lambda
+# GitHub Scraper Lambda
 
-The purpose of this lambda function is to acquire technolgies used across different repositories across ONSDigital
+This project utilises the [GitHub API Package](https://github.com/ONS-Innovation/github-api-package) GraphQL interface to get data from GitHub.
 
-## Setup
+
+### Prerequisites:
+- Python 3.10+
+- Poetry
+
+### Getting started
+
+Setup:
+```bash
+make install
+```
+
+Run:
+```bash
+make run
+```
 
 Set the appropriate environment variables:
 ```bash
@@ -14,9 +29,39 @@ export SOURCE_BUCKET='sdp-dev-github-scraper'
 ```
 
 ## Running the script
+
+The script is run from the command line using the following command:
 ```bash
 poetry run python app.py
 ```
+
+### Linting and formatting
+
+Install dev dependencies:
+```bash
+make install-dev
+```
+
+Run lint command:
+```bash
+make lint
+```
+
+Run ruff check:
+```bash
+make ruff
+```
+
+Run pylint:
+```bash
+make pylint
+```
+
+Run black:
+```bash
+make black
+```
+The purpose of this lambda function is to acquire technolgies used across different repositories across ONSDigital
 
 These instructions assume:
 
