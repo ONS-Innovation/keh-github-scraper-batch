@@ -32,15 +32,29 @@ def find_keywords_in_file(file, keywords_list):
         list: List of keywords that were found in the file
     """    
     keywords = []
-    if file is not None:
-        for keyword in keywords_list:
-            if (keyword.lower() in file.lower()) and (keyword.lower() not in keywords):
-                keywords.append(keyword)
-        return keywords
-    return []    
+    if file is None:
+        return []
+
+    for keyword in keywords_list:
+        if (keyword.lower() in file.lower()) and (keyword.lower() not in keywords):
+            keywords.append(keyword)
+    return keywords
+def retry_on_error(func):
+    def wrapper(*args, **kwargs):
+        pass
+    return wrapper
 
 def get_repository_technologies(ql, org, batch_size=5):
-    """Gets technology information for all repositories in an organization"""
+    """Get technology information for all repositories in an organization
+
+    Args:
+        ql (github_graphql_interface): GraphQL interface object
+        org (str): GitHub organization name
+        batch_size (int, optional): How many respositories to be processed in one request. Defaults to 5.
+
+    Returns:
+        list: List of repositories
+    """    
 
     query = """
     query($org: String!, $limit: Int!, $cursor: String) {
@@ -204,10 +218,12 @@ def get_repository_technologies(ql, org, batch_size=5):
                             }
                         )
                 
-                documentation_list = ["Confluence", "MKDocs", "Sphinx", "ReadTheDocs"]
-                cloud_services_list = ["AWS", "Azure", "GCP"]
-                frameworks_list = ["React", "Angular", "Vue", "Django", "Streamlit", "Flask", "Spring", "Hibernate", "Express", "Next.js", "Play", "Akka", "Lagom"]
-                ci_cd_list = ["Jenkins", "GitHub Actions", "GitLab CI", "CircleCI", "Travis CI", "Azure DevOps", "Concourse"]
+                with open('keywords.json', 'r') as file:
+                    keywords_json = json.load(file)
+
+                documentation_list = keywords_json["keywords"]["documentation"]
+                cloud_services_list = keywords_json["keywords"]["cloud_services"]
+                frameworks_list = keywords_json["keywords"]["frameworks"]
                 ci_cd = []
                 docs = []
                 cloud = []
@@ -234,8 +250,7 @@ def get_repository_technologies(ql, org, batch_size=5):
                             if cl.lower() in readme_content.lower():
                                 cloud.append(cl)
                     
-                    # Extremely hardcoded, will need to write a general tree traversal to find
-                    # things in all directories
+                    # TODO: Extremely hardcoded, will need to write a general tree traversal to find things in all directories
                     if repo["object"]["entries"]:
                         for entry in repo["object"]["entries"]:
                             if entry["name"] == ".github":
@@ -257,8 +272,14 @@ def get_repository_technologies(ql, org, batch_size=5):
                     "visibility": repo["visibility"],
                     "is_archived": is_archived,
                     "last_commit": last_commit_date,
-                    "technologies": {"languages": languages, "IAC": IAC, "docs": docs, "cloud": cloud, "frameworks": frameworks, "ci_cd": ci_cd},
-                }
+                    "technologies": {
+                                    "languages": languages, 
+                                    "IAC": IAC, 
+                                    "docs": docs, "cloud": cloud, 
+                                    "frameworks": frameworks, 
+                                    "ci_cd": ci_cd
+                                },
+                    }
 
                 all_repos.append(repo_info)
 
@@ -350,22 +371,27 @@ def get_repository_technologies(ql, org, batch_size=5):
     }
 
     # Write everything to file at once
+    """
     with open("repositories.json", "w") as file:
         json.dump(output, file, indent=2)
         file.write("\n")
+    """
 
-    return all_repos
+    return all_repos, output
 
 
 def handler(event, context):
-    """Main function to run the GitHub technology audit"""
+    """AWS Lambda Entrypoint"""
     try:
         # Configuration
-        org = os.getenv("GITHUB_ORG")
-        client_id = os.getenv("GITHUB_APP_CLIENT_ID")
-        secret_name = os.getenv("AWS_SECRET_NAME")
-        secret_region = os.getenv("AWS_DEFAULT_REGION")
-        bucket_name = os.getenv("SOURCE_BUCKET")
+        try:
+            org = os.getenv("GITHUB_ORG")
+            client_id = os.getenv("GITHUB_APP_CLIENT_ID")
+            secret_name = os.getenv("AWS_SECRET_NAME")
+            secret_region = os.getenv("AWS_DEFAULT_REGION")
+            bucket_name = os.getenv("SOURCE_BUCKET")
+        except Exception as e:
+            return logger.error("%s", str(e))
 
         logger.info("Starting GitHub technology audit")
 
@@ -386,10 +412,15 @@ def handler(event, context):
         ql = github_graphql_interface(str(token[0]))
 
         # Get repository technology information
-        repos = get_repository_technologies(ql, org)
+        repos, output = get_repository_technologies(ql, org)
         
         s3 = boto3.client('s3')
-        s3.upload_file('repositories.json', bucket_name, 'repositories.json')
+        s3.put_object(
+            Bucket=bucket_name,
+            Key='repositories.json',
+            Body=json.dumps(output, indent=4).encode("utf-8"),
+        )
+        # s3.upload_file('repositories.json', bucket_name, 'repositories.json')
         # Print or save results
         output = {
             "message": "Successfully analyzed repository technologies",
@@ -401,7 +432,6 @@ def handler(event, context):
         logger.error("Execution failed: %s", str(e))
 
 # Uncomment the following line to run the function locally
-"""
+
 if __name__ == "__main__":
     handler(None, None)
-"""

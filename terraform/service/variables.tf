@@ -83,3 +83,15 @@ variable "github_org" {
   description = "Github Org"
   type        = string
 }
+
+variable "memory_size" {
+  description = "Memory size"
+  type        = number
+  default     = 3008 
+}
+
+variable "timeout" {
+  description = "Timeout"
+  type        = number
+  default     = 900 
+}

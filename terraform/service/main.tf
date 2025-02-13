@@ -180,8 +180,8 @@ resource "aws_lambda_function" "github_scraper_lambda" {
     security_group_ids = [aws_security_group.lambda_sg.id]
   }
 
-  memory_size = 3008
-  timeout     = 900
+  var.memory_size = 3008
+  var.timeout     = 900
 
   environment {
     variables = {
