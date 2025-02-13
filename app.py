@@ -39,10 +39,6 @@ def find_keywords_in_file(file, keywords_list):
         if (keyword.lower() in file.lower()) and (keyword.lower() not in keywords):
             keywords.append(keyword)
     return keywords
-def retry_on_error(func):
-    def wrapper(*args, **kwargs):
-        pass
-    return wrapper
 
 def get_repository_technologies(ql, org, batch_size=5):
     """Get technology information for all repositories in an organization
