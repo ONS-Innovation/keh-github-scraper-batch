@@ -26,9 +26,11 @@ Output:
 import sys
 import os
 import json
+import time
 import logging
 import datetime
 import boto3
+from functools import wraps
 from github_api_toolkit import github_graphql_interface, get_token_as_installation
 
 # Set up logging
@@ -64,6 +66,31 @@ def find_keywords_in_file(file, keywords_list):
         if (keyword.lower() in file.lower()) and (keyword.lower() not in keywords):
             keywords.append(keyword)
     return keywords
+
+def retry_on_error(max_retries=5):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            fail_count = 0
+            while fail_count < max_retries:
+                result = func(*args, **kwargs)
+                if not result.ok:
+                    logger.error("GraphQL query failed: {}", result.status_code)
+                    fail_count += 1
+                    logger.info('RETRYING...')
+                    time.sleep(1)  # Optional: Add delay between retries if desired
+                else:
+                    return result
+            # If we reached max retries, log the failure and return None or raise an exception
+            logger.error("Exceeded maximum retries. Query failed.")
+            return None
+        return wrapper
+    return decorator
+
+@retry_on_error(max_retries=5)
+def make_request(ql, query, variables):
+    """Make a GraphQL request"""
+    return ql.make_ql_request(query, variables)
 
 def get_repository_technologies(ql, org, batch_size=5):
     """Get technology information for all repositories in an organization
@@ -155,21 +182,8 @@ def get_repository_technologies(ql, org, batch_size=5):
                     
     while has_next_page:
         variables = {"org": org, "limit": batch_size, "cursor": cursor}
-        fail_count = 0
 
-        while fail_count < 5:
-            result = ql.make_ql_request(query, variables)
-
-            if not result.ok:
-                logger.error("GraphQL query failed: {}", result.status_code)
-                fail_count += 1
-                logger.info('RETRYING...')
-            else:
-                break
-        if fail_count == 5:
-            break
-                
-
+        result = make_request(ql, query, variables)
         data = result.json()
         if "errors" in data:
             logger.error("GraphQL query returned errors: {}", data["errors"])
