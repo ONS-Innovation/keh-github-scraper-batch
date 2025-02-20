@@ -42,6 +42,7 @@ KEYWORDS_FILE = {
     }
 }
 
+MAX_RETRIES = int(os.getenv("MAX_RETRIES", 5))
 
 # Set up logging
 logger = logging.getLogger()
@@ -58,40 +59,38 @@ stdout_handler.setFormatter(
 )
 logger.addHandler(stdout_handler)
 
-def make_request_with_retry(ql, query, variables, max_retries=5, initial_delay=1):
+def make_request_with_retry(ql, query, variables):
     """Make a GraphQL request with retry logic
 
     Args:
         ql: GraphQL client
         query (str): GraphQL query
         variables (dict): Query variables
-        max_retries (int): Maximum number of retry attempts
-        initial_delay (int): Initial delay between retries in seconds
 
     Returns:
         requests.Response: The API response
     """
-    for attempt in range(max_retries):
+    for attempt in range(MAX_RETRIES):
         try:
             result = ql.make_ql_request(query, variables)
             if result.ok:
                 return result
-            
-            logger.warning(f"Request failed with status {result.status_code}, attempt {attempt + 1} of {max_retries}")
+            else:
+                logger.warning(f"Request failed with status {result.status_code}, attempt {attempt + 1} of {MAX_RETRIES}")
             
         except (ChunkedEncodingError, RequestException) as e:
-            if attempt == max_retries - 1:
+            if attempt == MAX_RETRIES - 1:
                 logger.error(f"Final retry attempt failed: {str(e)}")
                 raise
             
-            logger.warning(f"Request failed with error: {str(e)}, attempt {attempt + 1} of {max_retries}")
+            logger.warning(f"Request failed with error: {str(e)}, attempt {attempt + 1} of {MAX_RETRIES}")
         
         # Exponential backoff
-        delay = initial_delay * (2 ** attempt)
+        delay = 2 ** attempt
         logger.info(f"Waiting {delay} seconds before retrying...")
         time.sleep(delay)
     
-    raise Exception(f"Failed after {max_retries} attempts")
+    raise Exception(f"Failed after {MAX_RETRIES} attempts")
 
 def find_keywords_in_file(file, keywords_list):
     """Find keywords in a file
