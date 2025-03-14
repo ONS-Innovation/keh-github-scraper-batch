@@ -13,7 +13,7 @@ resources:
     repository: ((image-repo-name))
     username: ((registry-username))
     password: ((registry-password))
-    tag: v0.1.1
+    tag: latest
 
 jobs:
 - name:  build-and-push
@@ -38,6 +38,5 @@ jobs:
       run: # binary used to build the image
         path: build
   - put: scraper-image
-    trigger: true
     params:
       image: image/image.tar
