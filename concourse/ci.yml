@@ -1,35 +1,13 @@
 resources:
-- name: project-release
-  type: github-release
-  source:
-    owner: ((github-username))
-    repository: ((github-repo))
-    access_token: ((github-access-token))
-    release: true
-    pre_release: true
-    
-- name: ecr-docker-reg
-  type: docker-image
-  source:
-    aws_access_key_id: ((aws-token))
-    aws_secret_access_key: ((aws-secret))
-    repository: ((aws-repo))
-    
-- name: git-repo
+- name: resource-tutorial
   type: git
   source:
-    uri: ((github-repo-uri))
-    branch: main
-    username: ((github-username))
-    password: ((github-access-token))
-
+    uri: https://github.com/ONS-Innovation/keh-github-scraper-batch.git
+    branch: concourse
 jobs:
-- name: release-and-deploy
+- name:  hello-world-pipeline
+  public: true
   plan:
-  - get: project-release
-    trigger: true
-  - get: git-repo  
-  - put: ecr-docker-reg
-    params:
-      build: ./git-repo
-      tag_file: ./project-release/tag
+  - get: resource-tutorial
+  - task: hello-world
+    file: concourse/hello-world.yml
