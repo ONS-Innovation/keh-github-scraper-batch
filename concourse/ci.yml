@@ -1,14 +1,42 @@
 resources:
 - name: resource-tutorial
   type: git
+  icon: github
   source:
     uri: https://github.com/ONS-Innovation/keh-github-scraper-batch.git
     branch: concourse
+
+- name: scraper-image
+  type: registry-image
+  icon: docker
+  source:
+    repository: ((image-repo-name))
+    username: ((registry-username))
+    password: ((registry-password))
+    tag: v0,1.1
+
 jobs:
-- name:  hello-world-pipeline
+- name:  build-and-push
   public: true
   plan:
   - get: resource-tutorial
     trigger: true
-  - task: hello-world
-    file: resource-tutorial/concourse/hello-world.yml
+  - task: build-image
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: concourse/oci-build-task
+      inputs:
+      - name: resource-tutorial
+      outputs:
+      - name: image
+      params:
+        CONTEXT: resource-tutorial
+      run: # binary used to build the image
+        path: build
+  - put: scraper-image
+    params:
+      image: image/image.tar
