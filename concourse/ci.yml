@@ -9,5 +9,6 @@ jobs:
   public: true
   plan:
   - get: resource-tutorial
+    trigger: true
   - task: hello-world
     file: resource-tutorial/concourse/hello-world.yml
