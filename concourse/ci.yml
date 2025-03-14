@@ -13,7 +13,7 @@ resources:
     repository: ((image-repo-name))
     username: ((registry-username))
     password: ((registry-password))
-    tag: latest
+    tag: latestt
 
 jobs:
 - name:  build-and-push
