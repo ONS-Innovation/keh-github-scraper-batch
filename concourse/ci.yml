@@ -10,4 +10,4 @@ jobs:
   plan:
   - get: resource-tutorial
   - task: hello-world
-    file: concourse/hello-world.yml
+    file: /concourse/hello-world.yml
