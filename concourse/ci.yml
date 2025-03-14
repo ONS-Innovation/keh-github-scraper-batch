@@ -1,5 +1,5 @@
 resources:
-- name: resource-tutorial
+- name: resource-repo
   type: git
   icon: github
   source:
@@ -19,7 +19,7 @@ jobs:
 - name:  build-and-push
   public: true
   plan:
-  - get: resource-tutorial
+  - get: resource-repo
     trigger: true
   - task: build-image
     privileged: true
@@ -30,11 +30,11 @@ jobs:
         source:
           repository: concourse/oci-build-task
       inputs:
-      - name: resource-tutorial
+      - name: resource-repo
       outputs:
       - name: image
       params:
-        CONTEXT: resource-tutorial
+        CONTEXT: resource-repo
       run: # binary used to build the image
         path: build
   - put: scraper-image
