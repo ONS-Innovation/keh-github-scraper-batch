@@ -3,3 +3,4 @@ disable=logging-too-many-args, too-many-statements, logging-format-interpolation
 max-locals=45
 max-nested-blocks=7
 max-branches=20
+max-line-length=120
