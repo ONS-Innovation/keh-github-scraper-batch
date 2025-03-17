@@ -50,6 +50,10 @@ module "batch_eventbridge" {
     {
       name  = "BATCH_SIZE"
       value = tostring(var.batch_size)
+    },
+    {
+      name  = "ENVIRONMENT"
+      value = "production"
     }
   ]
 }
