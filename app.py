@@ -501,46 +501,44 @@ class GitHubDataConsumer:
             frameworks_list = KEYWORDS_FILE["keywords"]["frameworks"]
 
             if repo["object"] is not None and repo["object"]["entries"]:
-                # Get file contents
                 for entry in repo["object"]["entries"]:
+                    # Check for file contents
                     if entry["name"].lower() == "readme.md":
                         readme_content = entry["object"]["text"]
-                    if entry["name"].lower() == "pyproject.toml":
+                    elif entry["name"].lower() == "pyproject.toml":
                         pyproject_content = entry["object"]["text"]
-                    if entry["name"].lower() == "package.json":
+                    elif entry["name"].lower() == "package.json":
                         package_json_content = entry["object"]["text"]
-
-                # Process frameworks
-                frameworks_pyproject = find_keywords_in_file(
-                    pyproject_content, frameworks_list
-                )
-                frameworks_package_json = find_keywords_in_file(
-                    package_json_content, frameworks_list
-                )
-                frameworks = list(set(frameworks_pyproject + frameworks_package_json))
-
-                # Process documentation and cloud services
-                if readme_content is not None:
-                    for doc, cl in zip(documentation_list, cloud_services_list):
-                        if doc.lower() in readme_content.lower():
-                            docs.append(doc)
-                        if cl.lower() in readme_content.lower():
-                            cloud.append(cl)
-
-                # Process CI/CD
-                for entry in repo["object"]["entries"]:
-                    if entry["name"] == ".github":
+                    # Check for CI/CD configurations
+                    elif entry["name"] == ".github":
                         if entry["object"]["entries"]:
                             for gh_entry in entry["object"]["entries"]:
                                 if gh_entry["name"] == "workflows":
                                     ci_cd.append("GitHub Actions")
                                     break
-                    if entry["name"] == "ci":
+                    elif entry["name"] == "ci":
                         if entry["object"]["entries"]:
                             for ci_entry in entry["object"]["entries"]:
                                 if "pipeline.yml" in ci_entry["name"]:
                                     ci_cd.append("Concourse")
                                     break
+
+            # Process frameworks
+            frameworks_pyproject = find_keywords_in_file(
+                pyproject_content, frameworks_list
+            )
+            frameworks_package_json = find_keywords_in_file(
+                package_json_content, frameworks_list
+            )
+            frameworks = list(set(frameworks_pyproject + frameworks_package_json))
+
+            # Process documentation and cloud services
+            if readme_content is not None:
+                for doc, cl in zip(documentation_list, cloud_services_list):
+                    if doc.lower() in readme_content.lower():
+                        docs.append(doc)
+                    if cl.lower() in readme_content.lower():
+                        cloud.append(cl)
 
             repo_info = {
                 "name": repo["name"],
