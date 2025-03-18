@@ -31,6 +31,7 @@ import datetime
 import time
 import queue
 import threading
+import functools
 import boto3
 from requests.exceptions import ChunkedEncodingError, RequestException
 from github_api_toolkit import github_graphql_interface, get_token_as_installation
@@ -84,8 +85,57 @@ stdout_handler.setFormatter(
 logger.addHandler(stdout_handler)
 
 
-def make_request_with_retry(ql, query, variables):
-    """Make a GraphQL request with retry logic
+def retry_on_error(max_retries=None, delay_base=1):
+    """A decorator that retries a function if an exception is raised or if the response is not successful.
+
+    Args:
+        max_retries (int, optional): The number of times the function should be retried before failing.
+        delay_base (int, optional): Base value for exponential backoff calculation.
+
+    Returns:
+        function: Decorated function with retry logic
+    """
+    if max_retries is None:
+        max_retries = MAX_RETRIES
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            retries = 0
+
+            while retries < max_retries:
+                try:
+                    result = func(*args, **kwargs)
+                    # Check if result has 'ok' attribute (like requests.Response)
+                    if hasattr(result, "ok") and not result.ok:
+                        raise RequestException(
+                            f"Request failed with status {result.status_code}"
+                        )
+                    return result
+                except Exception as e:
+                    retries += 1
+                    if retries == max_retries:
+                        logger.error(f"Final retry attempt failed: {str(e)}")
+                        raise
+
+                    logger.warning(
+                        f"Request failed with error: {str(e)}, attempt {retries} of {max_retries}"
+                    )
+
+                    # Exponential backoff
+                    delay = delay_base * (2 ** (retries - 1))
+                    logger.info(f"Waiting {delay} seconds before retrying...")
+                    time.sleep(delay)
+            return None
+
+        return wrapper
+
+    return decorator
+
+
+@retry_on_error()
+def make_graphql_request(ql, query, variables):
+    """Make a GraphQL request
 
     Args:
         ql: GraphQL client
@@ -95,31 +145,7 @@ def make_request_with_retry(ql, query, variables):
     Returns:
         requests.Response: The API response
     """
-    for attempt in range(MAX_RETRIES):
-        try:
-            result = ql.make_ql_request(query, variables)
-            if result.ok:
-                return result
-            if not result.ok:
-                logger.warning(
-                    f"Request failed with status {result.status_code}, attempt {attempt + 1} of {MAX_RETRIES}"
-                )
-
-        except (ChunkedEncodingError, RequestException) as e:
-            if attempt == MAX_RETRIES - 1:
-                logger.error(f"Final retry attempt failed: {str(e)}")
-                raise
-
-            logger.warning(
-                f"Request failed with error: {str(e)}, attempt {attempt + 1} of {MAX_RETRIES}"
-            )
-
-        # Exponential backoff
-        delay = 2**attempt
-        logger.info(f"Waiting {delay} seconds before retrying...")
-        time.sleep(delay)
-
-    raise Exception(f"Failed after {MAX_RETRIES} attempts")
+    return ql.make_ql_request(query, variables)
 
 
 def find_keywords_in_file(file, keywords_list):
@@ -241,7 +267,7 @@ class GitHubDataProducer:
 
             try:
                 logger.info(f"Fetching | Batch: {self.batch_size}")
-                result = make_request_with_retry(self.ql, query, variables)
+                result = make_graphql_request(self.ql, query, variables)
                 data = result.json()
 
                 if "errors" in data:
@@ -320,7 +346,7 @@ class GitHubDataConsumer:
 
         try:
             variables = {"org": self.org}
-            result = make_request_with_retry(self.ql, query, variables)
+            result = make_graphql_request(self.ql, query, variables)
             data = result.json()
 
             if "errors" in data:
@@ -374,7 +400,7 @@ class GitHubDataConsumer:
 
             try:
                 variables = {"owner": self.org, "repo": repo_name}
-                result = make_request_with_retry(self.ql, query, variables)
+                result = make_graphql_request(self.ql, query, variables)
                 data = result.json()
 
                 if "errors" in data:
