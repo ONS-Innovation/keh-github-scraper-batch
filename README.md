@@ -91,7 +91,7 @@ export AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
 
 We then want to retrieve our password to login to ECR:
 ```bash
-REGISTRY_PASSWORD=aws ecr get-login-password` && export REGISTRY_PASSWORD
+REGISTRY_PASSWORD=`aws ecr get-login-password` && export REGISTRY_PASSWORD
 ```
 We can then setup our pipeline
 ```bash
