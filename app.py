@@ -432,18 +432,20 @@ class GitHubDataConsumer:
         if not content:
             return []
 
+        # Use toolkit methods to parse CODEOWNERS
+        codeowner_handles = self.ql.get_codeowners_from_text(content)
+        team_user_list = self.ql.identify_teams_and_users(codeowner_handles)
+        
+        team_items = [item for item in team_user_list if item["type"] == "team"]
+        
+        org_team_lookup = {team["slug"]: team["name"] for team in self.org_teams}
+        
+        # Match teams using the lookup
         matched_teams = []
-
-        # Get all team slugs for easier matching
-        team_slugs = [team["slug"] for team in self.org_teams]
-
-        content = content.replace("\n", " ")
-        for team_slug in team_slugs:
-            if f"@{self.org}/{team_slug}" in content.lower():
-                for team in self.org_teams:
-                    if team["slug"] == team_slug and team not in matched_teams:
-                        matched_teams.append(team["name"])
-
+        for item in team_items:
+            if item["name"] in org_team_lookup and org_team_lookup[item["name"]] not in matched_teams:
+                matched_teams.append(org_team_lookup[item["name"]])
+        
         return matched_teams
 
     def process_repo(self, repo):
