@@ -57,7 +57,7 @@ jobs:
           cd resource-repo/terraform/batch
           export AWS_ACCESS_KEY_ID=((aws_access_key_id))
           export AWS_SECRET_ACCESS_KEY=((aws_secret_access_key))
-          export TF_VAR_github_access_token=((github_access_token))
+          export TF_VAR_github_token=((github_access_token))
           terraform init -backend-config=env/dev/backend-dev.tfbackend -reconfigure
           terraform apply \
            -var "aws_region=((aws_region))" \
