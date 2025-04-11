@@ -15,6 +15,15 @@ resources:
     password: ((registry-password))
     tag: ((container_ver))
 
+- name: tag_commit
+  type: git
+  icon: github
+  source:
+    uri: https://github.com/ONS-Innovation/keh-scheduled-batch-tf-module
+    branch: main
+    username: ((github_access_token))
+    password: x-oauth-basic
+
 jobs:
 - name:  build-and-push
   public: true
@@ -31,6 +40,7 @@ jobs:
           repository: concourse/oci-build-task
       inputs:
       - name: resource-repo
+      - nameL: batch-repo
       outputs:
       - name: image
       params:
