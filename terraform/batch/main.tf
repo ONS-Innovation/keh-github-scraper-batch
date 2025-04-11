@@ -12,7 +12,6 @@ resource "aws_iam_policy" "s3_access" {
 
 module "batch_eventbridge" {
   // source = "git::https://github.com/ONS-Innovation/keh-scheduled-batch-tf-module.git?ref=test-v0.0.4"
-  source = "git::https://x-access-token:${var.github_token}@github.com/ONS-Innovation/keh-scheduled-batch-tf-module.git?ref=test-v0.0.4"
 
   aws_account_id        = var.aws_account_id
   aws_access_key_id     = var.aws_access_key_id
@@ -26,6 +25,9 @@ module "batch_eventbridge" {
   ecr_repository_name = var.ecr_repository_name
   container_ver       = var.container_ver
   schedule           = var.schedule
+  github_token = var.github_token
+  source = "git::https://oauth2:${github_token}@github.com/ONS-Innovation/keh-scheduled-batch-tf-module.git"
+
 
   service_environment_variables = [
     {
