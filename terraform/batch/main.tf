@@ -25,7 +25,6 @@ module "batch_eventbridge" {
   ecr_repository_name = var.ecr_repository_name
   container_ver       = var.container_ver
   schedule           = var.schedule
-  github_token = var.github_token
   // source = "git::https://oauth2:${github_token}@github.com/ONS-Innovation/keh-scheduled-batch-tf-module.git"
 
 
