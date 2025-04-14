@@ -31,7 +31,7 @@ jobs:
           repository: concourse/oci-build-task
       inputs:
       - name: resource-repo
-      - nameL: batch-repo
+      - name: batch-repo
       outputs:
       - name: image
       params:
