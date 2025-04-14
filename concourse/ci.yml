@@ -4,7 +4,7 @@ resources:
   icon: github
   source:
     uri: https://github.com/ONS-Innovation/keh-github-scraper-batch.git
-    branch: concourse
+    branch: ljfranklin_concourse
 
 - name: scraper-image
   type: registry-image
@@ -14,15 +14,6 @@ resources:
     username: ((registry-username))
     password: ((registry-password))
     tag: ((container_ver))
-
-- name: tag_commit
-  type: git
-  icon: github
-  source:
-    uri: https://github.com/ONS-Innovation/keh-scheduled-batch-tf-module
-    branch: main
-    username: ((github_access_token))
-    password: x-oauth-basic
 
 jobs:
 - name:  build-and-push
@@ -50,34 +41,5 @@ jobs:
   - put: scraper-image
     params:
       image: image/image.tar
-  - task: terraform
-    privileged: true
-    config:
-      platform: linux
-      image_resource:
-        type: docker-image
-        source: {repository: hashicorp/terraform}
-      inputs:
-      - name: resource-repo
-      run:
-        path: sh
-        args:
-        - -cx
-        - |
-          cd resource-repo/terraform/batch
-          export AWS_ACCESS_KEY_ID=((aws_access_key_id))
-          export AWS_SECRET_ACCESS_KEY=((aws_secret_access_key))
-          export TF_VAR_github_token=((github_access_token))
-          terraform init -backend-config=env/dev/backend-dev.tfbackend -reconfigure
-          terraform apply \
-           -var "aws_region=((aws_region))" \
-           -var "aws_account_id=((aws_account_id))" \
-           -var "aws_access_key_id=((aws_access_key_id))" \
-           -var "aws_secret_access_key=((aws_secret_access_key))" \
-           -var "domain=((domain))" \
-           -var "container_ver=((container_ver))" \
-           -var "source_bucket=((source_bucket))" \
-           -var "github_org=((github_org))" \
-           -auto-approve
           
 
