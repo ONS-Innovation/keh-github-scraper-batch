@@ -1,11 +1,3 @@
-resource_types:
-- name: terraform
-  type: docker-image
-  source:
-    repository: ljfranklin/terraform-resource
-    tag: latest
-
-
 resources:
 - name: resource-repo
   type: git
@@ -21,16 +13,7 @@ resources:
     repository: ((image-repo-name))
     username: ((registry-username))
     password: ((registry-password))
-    tag: ((container_ver))
-
-- name: batch-repo
-  type: git
-  icon: github
-  source:
-    uri: https://github.com/ONS-Innovation/keh-scheduled-batch-tf-module
-    branch: main
-    username: ((github_access_token))
-    password: x-oauth-basic
+    tag: latest
 
 jobs:
 - name:  build-and-push
@@ -38,8 +21,7 @@ jobs:
   plan:
   - get: resource-repo
     trigger: true
-  - get: batch-repo
-    trigger: false
+
   - task: build-image
     privileged: true
     config:
@@ -50,13 +32,13 @@ jobs:
           repository: concourse/oci-build-task
       inputs:
       - name: resource-repo
-      - name: batch-repo
       outputs:
       - name: image
       params:
         CONTEXT: resource-repo
       run: # binary used to build the image
         path: build
+
   - put: scraper-image
     params:
       image: image/image.tar
@@ -66,7 +48,7 @@ jobs:
       platform: linux
       image_resource:
         type: docker-image
-        source: {repository: ubuntu}
+        source: {repository: hashicorp/terraform}
       inputs:
       - name: resource-repo
       run:
@@ -74,36 +56,21 @@ jobs:
         args:
         - -cx
         - |
-          uname -m
-          cd resource-repo/terraform/batch
           export AWS_ACCESS_KEY_ID=((aws_access_key_id))
           export AWS_SECRET_ACCESS_KEY=((aws_secret_access_key))
-          export TF_VAR_github_token=((github_access_token))
-          
-          apt-add-repository https://cli.github.com/packages
-          apt update
-          apt install gh
-          apt install git -y
-          gh auth login --with-token ((github_access_token))
-
-          apt install wget -y
-          apt install unzip -y
-
-
-          wget https://releases.hashicorp.com/terraform/1.11.4/terraform_1.11.4_linux_amd64.zip
-          unzip terraform_1.11.4_linux_amd64.zip
-          mv terraform /usr/local/bin/
-
+          git config --global url."https://x-access-token:((github_access_token))@github.com/".insteadOf "https://github.com/"
+          cd resource-repo/terraform/batch
           terraform init -backend-config=env/dev/backend-dev.tfbackend -reconfigure
           terraform apply \
-           -var "aws_region=((aws_region))" \
            -var "aws_account_id=((aws_account_id))" \
            -var "aws_access_key_id=((aws_access_key_id))" \
            -var "aws_secret_access_key=((aws_secret_access_key))" \
+           -var "aws_secret_name=((aws_secret_name))" \
            -var "domain=((domain))" \
            -var "container_ver=((container_ver))" \
            -var "source_bucket=((source_bucket))" \
            -var "github_org=((github_org))" \
+           -var "github_app_client_id=((github_app_client_id))" \
+           -var "batch_size=((batch_size))" \
            -auto-approve
           
-
