@@ -39,11 +39,13 @@ Export other environment variables:
 export SOURCE_BUCKET=<BUCKET_NAME>
 export SOURCE_KEY=<KEY>
 export BATCH_SIZE=<BATCH_SIZE>
+export ENVIRONMENT=<development/production>
 ```
 
 - The source_bucket is the S3 bucket that will store the output of the script.
 - The source_key is the key of the file that will store the output of the script.
 - The batch_size is the number of repositories that will be scraped in each batch.
+- The environment determines where to save the results. Development: locally, Production: to S3
 
 Run:
 ```bash
