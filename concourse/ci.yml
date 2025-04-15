@@ -13,7 +13,7 @@ resources:
     repository: ((image-repo-name))
     username: ((registry-username))
     password: ((registry-password))
-    tag: ((container_ver))
+    tag: latest
 
 jobs:
 - name:  build-and-push
@@ -40,4 +40,39 @@ jobs:
   - put: scraper-image
     params:
       image: image/image.tar
-
+  - task: terraform
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: docker-image
+        source: {repository: hashicorp/terraform}
+      inputs:
+      - name: resource-repo
+      run:
+        path: sh
+        args:
+        - -cx
+        - |
+          apk update
+          export AWS_ACCESS_KEY_ID=((aws_access_key_id))
+          export AWS_SECRET_ACCESS_KEY=((aws_secret_access_key))
+          echo ((github_access_token)) >> token.txt
+          git config --global url."https://x-access-token:((github_access_token))@github.com/".insteadOf "https://github.com/"
+          cd resource-repo/terraform/batch
+          terraform init -backend-config=env/dev/backend-dev.tfbackend -reconfigure
+          terraform apply \
+           -var "aws_region=((aws_region))" \
+           -var "aws_account_id=((aws_account_id))" \
+           -var "aws_access_key_id=((aws_access_key_id))" \
+           -var "aws_secret_access_key=((aws_secret_access_key))" \
+           -var "aws_secret_name=((aws_secret_name))" \
+           -var "domain=((domain))" \
+           -var "container_ver=((container_ver))" \
+           -var "source_bucket=((source_bucket))" \
+           -var "github_org=((github_org))" \
+           -var "github_app_client_id=((github_app_client_id))" \
+           -var "batch_size=((batch_size))" \
+           -var "environment=((environment))" \
+           -auto-approve
+          

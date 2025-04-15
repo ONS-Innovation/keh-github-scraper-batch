@@ -119,8 +119,3 @@ variable "batch_size" {
   type        = number
   default     = 30
 }
-
-variable "github_token" {
-  description = "Github token"
-  type        = string
-}
