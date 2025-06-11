@@ -80,4 +80,3 @@ jobs:
           export env=((env))
           ./resource-repo/concourse/scripts/terraform_infra.sh
     timeout: 30m
-            
