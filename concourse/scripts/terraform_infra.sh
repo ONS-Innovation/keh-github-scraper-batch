@@ -36,7 +36,6 @@ terraform apply \
 -var "aws_secret_access_key=$aws_secret_access_key" \
 -var "domain=$domain" \
 -var "container_ver=${tag}" \
--var "container_image=$container_image" \
 -var "source_bucket=$source_bucket" \
 -var "source_key=$source_key" \
 -var "github_app_client_id=$github_app_client_id" \
