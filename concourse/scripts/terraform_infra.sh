@@ -11,7 +11,7 @@ domain=$(echo "$github_scraper_secrets" | jq -r .domain)
 source_bucket=$(echo "$github_scraper_secrets" | jq -r .source_bucket)
 source_key=$(echo "$github_scraper_secrets" | jq -r .source_key)
 
-github_app_client_id=$(echo "$github_scraper_secrets" | jq -r .source_bucket)
+github_app_client_id=$(echo "$github_scraper_secrets" | jq -r .github_app_client_id)
 aws_secret_name=$(echo "$github_scraper_secrets" | jq -r .aws_secret_name)
 
 github_org=$(echo "$github_scraper_secrets" | jq -r .github_org)
