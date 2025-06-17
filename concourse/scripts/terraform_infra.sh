@@ -43,6 +43,7 @@ fi
 echo ${env}
 
 cd resource-repo/terraform/batch
+rm -rf .terraform
 terraform init -backend-config=env/${env}/backend-${env}.tfbackend -reconfigure
 terraform apply \
 -var "aws_account_id=$aws_account_id" \
