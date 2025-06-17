@@ -28,6 +28,8 @@ if [[ ${env} != "prod" ]]; then
     env="dev"
 fi
 
+aws sts get-caller-identity --output=json
+
 cd resource-repo/terraform/batch
 terraform init -backend-config=env/${env}/backend-${env}.tfbackend -reconfigure
 terraform apply \
