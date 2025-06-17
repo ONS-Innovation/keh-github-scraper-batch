@@ -1,6 +1,6 @@
 set -euo pipefail
 
-apk add --no-cache jq
+apk add --no-cache aws-cli jq
 
 aws_account_id=$(echo "$github_scraper_secrets" | jq -r .aws_account_id)
 aws_access_key_id=$(echo "$github_scraper_secrets" | jq -r .aws_access_key_id)
