@@ -19,6 +19,18 @@ container_image=$(echo "$github_scraper_secrets" | jq -r .container_image)
 
 batch_size=$(echo "$github_scraper_secrets" | jq -r .batch_size)
 
+echo "AWS Account ID: $aws_account_id"
+echo "AWS Access Key ID: $aws_access_key_id"
+echo "AWS Secret Access Key: $aws_secret_access_key"
+echo "Domain: $domain"
+echo "Source Bucket: $source_bucket"
+echo "Source Key: $source_key"
+echo "GitHub App Client ID: $github_app_client_id"
+echo "AWS Secret Name: $aws_secret_name"
+echo "GitHub Organization: $github_org"
+echo "Container Image: $container_image"
+echo "Batch Size: $batch_size"
+
 export AWS_ACCESS_KEY_ID=$aws_access_key_id
 export AWS_SECRET_ACCESS_KEY=$aws_secret_access_key
 
