@@ -11,7 +11,7 @@ resource "aws_iam_policy" "s3_access" {
 }
 
 module "batch_eventbridge" {
-  source = "git::https://github.com/ONS-Innovation/keh-scheduled-batch-tf-module.git?ref=patch-test-v0.0.4"
+  source = "git::https://github.com/ONS-Innovation/keh-scheduled-batch-tf-module.git?ref=test-v1.0.1"
 
   aws_account_id        = var.aws_account_id
   aws_access_key_id     = var.aws_access_key_id
@@ -25,6 +25,8 @@ module "batch_eventbridge" {
   ecr_repository_name = var.ecr_repository_name
   container_ver       = var.container_ver
   schedule           = var.schedule
+  private_subnet_ids = data.terraform_remote_state.vpc.outputs.private_subnets
+  vpc_id = data.terraform_remote_state.vpc.outputs.vpc_id
 
   service_environment_variables = [
     {

@@ -24,3 +24,13 @@ data "aws_iam_policy_document" "s3_policy" {
     ]
   }
 }
+
+data "terraform_remote_state" "vpc" {
+  backend = "s3"
+
+  config = {
+    bucket = "${var.domain}-tf-state"
+    key    = "${var.domain}-ecs-infra/terraform.tfstate"
+    region = "eu-west-2"
+  }
+}
