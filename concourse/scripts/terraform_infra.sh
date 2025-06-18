@@ -44,14 +44,7 @@ echo ${env}
 
 cd resource-repo/terraform/batch
 
-echo "Loading backend config from: env/${env}/backend-${env}.tfbackend"
-cat env/${env}/backend-${env}.tfbackend
-
 terraform init -backend-config=env/${env}/backend-${env}.tfbackend -reconfigure
-
-echo "=== Terraform Backend ==="
-cat .terraform/terraform.tfstate 2>/dev/null || echo "No local tfstate"
-cat .terraform/terraform.tf | grep bucket || echo "No backend config found"
 
 terraform apply \
 -var "aws_account_id=$aws_account_id" \
