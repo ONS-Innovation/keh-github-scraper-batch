@@ -18,6 +18,7 @@ github_org=$(echo "$github_scraper_secrets" | jq -r .github_org)
 ecr_repository_name=$(echo "$github_scraper_secrets" | jq -r .ecr_repository_name)
 
 batch_size=$(echo "$github_scraper_secrets" | jq -r .batch_size)
+schedule=$(echo "$github_scraper_secrets" | jq -r .schedule)
 
 export AWS_ACCESS_KEY_ID=$aws_access_key_id
 export AWS_SECRET_ACCESS_KEY=$aws_secret_access_key

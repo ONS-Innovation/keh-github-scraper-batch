@@ -16,6 +16,7 @@ resources:
     username: ((github_access_token))
     password: x-oauth-basic
     repository: keh-github-scraper-batch
+  check_every: 10m
 
 jobs:
 - name:  build-and-push
