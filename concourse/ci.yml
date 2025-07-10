@@ -8,16 +8,6 @@ resources:
     password: x-oauth-basic
     branch: ((branch))
 
-- name: release
-  type: github-release
-  icon: github
-  source:
-    owner: ONS-Innovation
-    username: ((github_access_token))
-    password: x-oauth-basic
-    repository: keh-github-scraper-batch
-  check_every: 10m
-
 jobs:
 - name:  build-and-push
   public: true
@@ -41,14 +31,17 @@ jobs:
       params:
         aws_account_id: ((aws_account_sdp_((env))))
         aws_role_arn: arn:aws:iam::((aws_account_sdp_((env)))):role/sdp-concourse-((env))
-        github_scraper_secrets: ((sdp_((env))_github_scraper_secrets))
+        secrets: ((sdp_((env))_github_scraper_secrets))
       run: # binary used to build the image
         path: sh
         args:
         - -cx
         - |
+          apk add --no-cache aws-cli podman jq iptables curl
+
           if [[ "((env))" == "prod" ]]; then
-            export tag=v$(cat release/version)
+            tag=$(curl "https://api.github.com/repos/ONS-Innovation/keh-github-scraper-batch/releases" | jq -r '.[0].tag_name')
+            export tag
           else
             export tag=((tag))
           fi
@@ -69,15 +62,18 @@ jobs:
       - name: resource-repo
       - name: release
       params:
-        github_scraper_secrets: ((sdp_((env))_github_scraper_secrets))
+        secrets: ((sdp_((env))_github_scraper_secrets))
         github_access_token: ((github_access_token))
       run:
         path: sh
         args:
         - -cx
         - |
+          apk add --no-cache jq curl
+
           if [[ "((env))" == "prod" ]]; then
-            export tag=v$(cat release/version)
+            tag=$(curl "https://api.github.com/repos/ONS-Innovation/keh-github-scraper-batch/releases" | jq -r '.[0].tag_name')
+            export tag
           else 
             export tag=((tag))
           fi

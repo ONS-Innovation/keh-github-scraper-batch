@@ -1,24 +1,22 @@
 set -euo pipefail
 
-apk add --no-cache jq
+aws_account_id=$(echo "$secrets" | jq -r .aws_account_id)
+aws_access_key_id=$(echo "$secrets" | jq -r .aws_access_key_id)
 
-aws_account_id=$(echo "$github_scraper_secrets" | jq -r .aws_account_id)
-aws_access_key_id=$(echo "$github_scraper_secrets" | jq -r .aws_access_key_id)
+aws_secret_access_key=$(echo "$secrets" | jq -r .aws_secret_access_key)
+domain=$(echo "$secrets" | jq -r .domain)
 
-aws_secret_access_key=$(echo "$github_scraper_secrets" | jq -r .aws_secret_access_key)
-domain=$(echo "$github_scraper_secrets" | jq -r .domain)
+source_bucket=$(echo "$secrets" | jq -r .source_bucket)
+source_key=$(echo "$secrets" | jq -r .source_key)
 
-source_bucket=$(echo "$github_scraper_secrets" | jq -r .source_bucket)
-source_key=$(echo "$github_scraper_secrets" | jq -r .source_key)
+github_app_client_id=$(echo "$secrets" | jq -r .github_app_client_id)
+aws_secret_name=$(echo "$secrets" | jq -r .aws_secret_name)
 
-github_app_client_id=$(echo "$github_scraper_secrets" | jq -r .github_app_client_id)
-aws_secret_name=$(echo "$github_scraper_secrets" | jq -r .aws_secret_name)
+github_org=$(echo "$secrets" | jq -r .github_org)
+ecr_repository_name=$(echo "$secrets" | jq -r .ecr_repository_name)
 
-github_org=$(echo "$github_scraper_secrets" | jq -r .github_org)
-ecr_repository_name=$(echo "$github_scraper_secrets" | jq -r .ecr_repository_name)
-
-batch_size=$(echo "$github_scraper_secrets" | jq -r .batch_size)
-schedule=$(echo "$github_scraper_secrets" | jq -r .schedule)
+batch_size=$(echo "$secrets" | jq -r .batch_size)
+schedule=$(echo "$secrets" | jq -r .schedule)
 
 export AWS_ACCESS_KEY_ID=$aws_access_key_id
 export AWS_SECRET_ACCESS_KEY=$aws_secret_access_key
