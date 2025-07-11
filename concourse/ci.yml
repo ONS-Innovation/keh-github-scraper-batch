@@ -14,9 +14,6 @@ jobs:
   plan:
   - get: resource-repo
     timeout: 5m
-  - get: release
-    trigger: true
-    timeout: 5m
   - task: build-image
     privileged: true
     config:
@@ -27,7 +24,6 @@ jobs:
           repository: hashicorp/terraform
       inputs:
       - name: resource-repo
-      - name: release
       params:
         aws_account_id: ((aws_account_sdp_((env))))
         aws_role_arn: arn:aws:iam::((aws_account_sdp_((env)))):role/sdp-concourse-((env))
@@ -60,7 +56,6 @@ jobs:
         source: {repository: hashicorp/terraform}
       inputs:
       - name: resource-repo
-      - name: release
       params:
         secrets: ((sdp_((env))_github_scraper_secrets))
         github_access_token: ((github_access_token))
