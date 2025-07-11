@@ -79,46 +79,37 @@ Run black:
 make black
 ```
 
-## Setting up Concourse Pipeline
+### Deployments with Concourse
 
-Pipelines for our build and deployment steps are built using Concourse. To setup the pipelines, first head to this Confluence page on steps to add your IP to the allowlist and login to the Concourse server. This assumes that you have access to sdp-pipeline-prod. 
+#### Allowlisting your IP
+To setup the deployment pipeline with concourse, you must first allowlist your IP address on the Concourse
+server. IP addresses are flushed everyday at 00:00 so this must be done at the beginning of every working day
+whenever the deployment pipeline needs to be used. Follow the instructions on the Confluence page (SDP Homepage > SDP Concourse > Concourse Login) to
+login. All our pipelines run on sdp-pipeline-prod, whereas sdp-pipeline-dev is the account used for
+changes to Concourse instance itself. Make sure to export all necessary environment variables from sdp-pipeline-prod (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN).
 
-Once you have allowlisted your IP and logged in, we can start setting up the pipeline. Make sure to unset any previous AWS credentials in the current terminal session.
+#### Setting up a pipeline
+When setting up our pipelines, we use ecs-infra-user on sdp-dev to be able to interact with our infrastructure on AWS. The credentials for this are stored on
+AWS Secrets Manager so you do not need to set up anything yourself.
 
-First export relevant environment variables for the ECR repository that we want to push to:
+To set the pipeline, run the following script:
 ```bash
-export AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
-export AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
+chmod u+x ./concourse/scripts/set_pipeline.sh
+./concourse/scripts/set_pipeline.sh github-scraper
+```
+Note that you only have to run chmod the first time running the script in order to give permissions.
+This script will set the branch and pipeline name to whatever branch you are currently on. It will also set the image tag on ECR to the current commit hash at the time of setting the pipeline.
+
+The pipeline name itself will usually follow a pattern as follows: `<repo-name>-<branch-name>`
+If you wish to set a pipeline for another branch without checking out, you can run the following:
+```bash
+./concourse/scripts/set_pipeline.sh github-scraper <branch_name>
 ```
 
-We then want to retrieve our password to login to ECR:
-```bash
-REGISTRY_PASSWORD=`aws ecr get-login-password` && export REGISTRY_PASSWORD
-```
-We can then setup our pipeline
-```bash
-fly -t aws-sdp set-pipeline -p hello-world \
-  -c concourse/ci.yml \
-  --var image-repo-name=<AWS_ACCOUNT_ID>.dkr.ecr.eu-west-2.amazonaws.com/sdp-dev-github-scraper \
-  --var registry-username=AWS \
-  --var registry-password=$REGISTRY_PASSWORD \
-  —var AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID> \
-  —var AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY> \
-  -var "aws_region=((aws_region))" \
-  -var "aws_account_id=((aws_account_id))" \
-  -var "aws_access_key_id=((aws_access_key_id))" \
-  -var "aws_secret_access_key=((aws_secret_access_key))" \
-  -var "aws_bucket_name=((aws_bucket_name))" \
-  -var "domain=((domain))" \
-  -var "container_ver=((container_ver))" \
-  -var "source_bucket=((source_bucket))" \
-```
-To unpause the pipeline, you can either manually unpause in the Concourse UI or run the following
-```bash
-fly -t aws-sdp unpause-pipeline -p hello-world
-```
+If the branch you are deploying is "main" or "master", it will trigger a deployment to the sdp-prod environment. To set the ECR image tag, you must draft a Github release pointing to the latest release of the main/master branch that has a tag in the form of vX.Y.Z. Drafting up a release will automatically deploy the latest version of the main/master branch with the associated release tag, but you can also manually trigger a build through the Concourse UI or the terminal prompt.
 
-Builds are triggered when commits are pushed into the branch. You can also trigger builds manually through the UI or with the following command:
+#### Triggering a pipeline
+Once the pipeline has been set, you can manually trigger a build on the Concourse UI, or run the following command:
 ```bash
-fly -t aws-sdp trigger-job -j hello-world/build-and-push
+fly -t aws-sdp trigger-job -j github-scraper-<branch-name>/build-and-push
 ```
