@@ -3,3 +3,4 @@ repositories.json
 .terraform/
 *tfvars
 .DS_Store
+venv/
